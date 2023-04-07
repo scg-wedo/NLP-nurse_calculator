@@ -62,7 +62,7 @@ class extract:
                 if isinstance(v, str) and v in text:
                     self.predict[i+1] = v
                     break
-        return self.predict
+        
     
 
     #condition
@@ -93,6 +93,7 @@ class extract:
     #request more information
     def request_info(self):
         info = self.df.columns.tolist()
+        pred=[]
         response_ask = []
 
         if not self.conditions_dp:
@@ -110,20 +111,18 @@ class extract:
 
         if not self.conditions_dis:
             response_ask.append((info[4], 4))
-
-        return(response_ask)
+        pred.append((self.predict,response_ask))
+        return(pred)
         
 spreadsheetId = "11Q8gRfwRHBkyIk6lAHKKTj7LySsOS2aU" # Please set your Spreadsheet ID.
 text="คนไข้ท้องเสียรุนแรงรักษากับอาจารย์ทรงภูมิแผนกศัลยกรรม ให้น้ำเกลือพักห้องธรรมดาคืน"
 information = extract(spreadsheetId)
-predict = information.predict_info(text)
-request = information.request_info()
+information.predict_info(text)
+pred = information.request_info()
 error1,error2 = information.check_valid_prediction()
-print(predict)
-print(request)
+print(pred)
 print(error1,error2)
 
-#concat Text
 
 
 
