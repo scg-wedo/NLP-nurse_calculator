@@ -22,12 +22,15 @@ class extract:
         self.conditions_rm = None
         self.conditions_dis = None
         self.check_status = None
+        self.response_ask = None
+        self.total_spend = None
         self.conditions_frist_nickname = None
         self.conditions_name_department = None
         self.read_google_spreadsheet()
         self.predict_info(text)
         self.check_valid_prediction()
         self.request_info()
+        self.response_back()
 
 
     def read_google_spreadsheet(self):
@@ -63,7 +66,37 @@ class extract:
                     self.predict[i+1] = v
                     break
         
-    
+    def calculate_total_spend(self):
+        # extract relevant information from prediction
+        name = self.predict[2]
+        nickname = self.predict[1]
+        disease = self.predict[4]
+        roomtype = self.predict[5]
+        number = self.predict[6]
+        duration = self.predict[7] 
+        
+        # get price of id
+        p_id = self.df_price_id.loc[(self.df_price_id['ชื่อจริง'] == name) & (self.df_price_id['ชื่อเล่น'] == nickname), self.df_price_id.columns[-1]]
+
+        # get price of room
+        p_rm = self.df_price_rm.loc[self.df_price_rm['ห้องพัก'] == roomtype, self.df_price_rm.columns[-2]]
+        condition = {
+            1: duration in ["คืน", "วัน"],
+            7: duration == "สัปดาห์",
+            30: duration == "เดือน",
+            356: duration == "ปี",   
+        }
+        day = next(key for key, value in condition.items() if value)
+        p_rm *= int(text_to_arabic_digit(number)) * day
+
+        # get price of disease
+        p_dis = self.df_price_dis[self.df_price_dis[disease]==1]['ราคา'].sum()
+
+        # calculate total spend
+        self.total_spend = int(p_id) + int(p_rm) + int(p_dis)
+        
+        return self.total_spend 
+
 
     #condition
     #identify doctor/department/desease
@@ -79,49 +112,79 @@ class extract:
         self.conditions_dp = (department != "-")
         self.conditions_rm = ((roomtype != "-") and (number != "-")) or ((roomtype == "-") and (number == "-") and (duration == "-"))
         self.conditions_dis = (disease != "-")
-       
-        if self.conditions_dp == True & self.conditions_id == True:
-            if name  != '-'   &  nickname  != '-' :
-                    self.conditions_frist_nickname = (self.df_id[(self.df_id['ชื่อจริง'] == name) & (self.df_id['ชื่อเล่น'] == nickname)].shape[0] == 1)
+        print(self.conditions_id)
+        
+        if self.conditions_id:
+            if name != '-' and nickname != '-':
+                self.conditions_frist_nickname = (self.df_id[(self.df_id['ชื่อจริง'] == name) & (self.df_id['ชื่อเล่น'] == nickname)].shape[0] == 1)
+            else:
+                self.conditions_frist_nickname = True
+        else:
+            self.conditions_frist_nickname = "Can't check"
+
+        if self.conditions_dp and (name != '-' or nickname != '-'):
             self.conditions_name_department = (self.df_id[(self.df_id['ชื่อจริง'] == name) & (self.df_id['แผนก'] == department)].shape[0] == 1) | (self.df_id[(self.df_id['ชื่อเล่น'] == nickname) & (self.df_id['แผนก'] == department)].shape[0] == 1)
         else:
-                self.conditions_frist_nickname = "can't check"
-                self.conditions_name_department = "can't check"
+            self.conditions_name_department = "Can't check"
 
-        return(self.conditions_frist_nickname ,self.conditions_name_department)
-
+        return self.conditions_frist_nickname, self.conditions_name_department
     #request more information
     def request_info(self):
         info = self.df.columns.tolist()
         pred=[]
-        response_ask = []
+        self.response_ask = []
 
         if not self.conditions_dp:
-            response_ask.append((info[0], 0))
+            self.response_ask.append((info[0], 0,"แผนกที่เข้ารับการรักษา"))
 
         if not self.conditions_id:
             for i in range(1, 3):
                 if self.predict[i] == "-":
-                    response_ask.append((info[i], i))
+                    if i == 1:
+                        self.response_ask.append((info[i], i,"ชื่อเล่นคุณหมอ"))
+                    if i == 2:
+                        self.response_ask.append((info[i], i,"ชื่อจริงคุณหมอ"))
 
         if not self.conditions_rm:
-            for z in range(5, 8):
+            for z in range(5, 7):
                 if self.predict[z] == "-":
-                    response_ask.append((info[z], z))
+                    if z == 5:
+                        self.response_ask.append((info[z], z,"ประเภทของห้องพักฟื้น"))
+                    if z == 6:
+                        self.response_ask.append((info[z], z,"จำนวนระยะเวลาที่เข้าพัก"))
 
         if not self.conditions_dis:
-            response_ask.append((info[4], 4))
-        pred.append((self.predict,response_ask))
+            self.response_ask.append((info[4], 4,"โรคที่เข้ารับการรักษา"))
+        pred.append((self.predict,self.response_ask))
         return(pred)
+
+    def response_back(self):
+        self.res = ''
+        if not self.conditions_frist_nickname:
+            self.res = "ไม่พบรายชื่อในฐานข้อมูล กรุณาระบุอีกครั้งนะคะ"
+        elif not self.conditions_name_department:
+            self.res = "ข้อมูลที่ระบุไม่ตรงกับฐานข้อมูล กรุณาระบุใหม่นะคะ"
+        elif self.response_ask != [] and self.conditions_name_department is not False and self.conditions_frist_nickname is not False:
+            for ask in range(len(self.response_ask)):
+                if ask == 0:
+                    self.res = "กรุณาระบุ" + self.response_ask[ask][2]
+                else:
+                    self.res += " " + self.response_ask[ask][2]
+            self.res = self.res + "ค่ะ"
+        elif self.response_ask == [] and self.conditions_name_department is True and self.conditions_frist_nickname is True:
+            self.res = "ค่าใช้จ่ายเบื้องต้นอยู่ที่" + self.total_spend + "ค่ะ"
+        return self.res
+               
+
+
         
 spreadsheetId = "11Q8gRfwRHBkyIk6lAHKKTj7LySsOS2aU" # Please set your Spreadsheet ID.
-text="คนไข้ท้องเสียรุนแรงรักษากับอาจารย์ทรงภูมิแผนกศัลยกรรม ให้น้ำเกลือพักห้องธรรมดาคืน"
+text="คนไข้ท้องเสียรุนแรงรักษากับอาจารย์เบิร์ด แผนกศัลยกรรม ให้น้ำเกลือพักห้องคืน"
 information = extract(spreadsheetId)
-information.predict_info(text)
 pred = information.request_info()
-error1,error2 = information.check_valid_prediction()
+response = information.response_back()
 print(pred)
-print(error1,error2)
+print(response)
 
 
 
@@ -133,36 +196,3 @@ print(error1,error2)
 # predict = update_predict(predict, response_ask, predict_2)
 # print(predict)
 
-# class calculate(predict):
-#     #calculator
-#     def calculate_total_spend(predict):
-        
-#         # extract relevant information from prediction
-#         name = predict[2]
-#         nickname = predict[1]
-#         disease = predict[4]
-#         roomtype = predict[5]
-#         number = predict[6]
-#         duration = predict[7] 
-        
-#         # get price of id
-#         p_id = df_price_id.loc[(df_price_id['ชื่อจริง'] == name) & (df_price_id['ชื่อเล่น'] == nickname), df_price_id.columns[-1]]
-
-#         # get price of room
-#         p_rm = df_price_rm.loc[df_price_rm['ห้องพัก'] == roomtype, df_price_rm.columns[-2]]
-#         condition = {
-#             1: duration in ["คืน", "วัน"],
-#             7: duration == "สัปดาห์",
-#             30: duration == "เดือน",
-#             356: duration == "ปี",   
-#         }
-#         day = next(key for key, value in condition.items() if value)
-#         p_rm *= int(text_to_arabic_digit(number)) * day
-
-#         # get price of disease
-#         p_dis = df_price_dis[df_price_dis[disease]==1]['ราคา'].sum()
-
-#         # calculate total spend
-#         total_spend = int(p_id) + int(p_rm) + int(p_dis)
-        
-#         return total_spend
