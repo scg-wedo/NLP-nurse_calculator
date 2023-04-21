@@ -30,6 +30,7 @@ class extract:
         self.predict_info(text)
         self.check_valid_prediction()
         self.request_info()
+        self.calculate_total_spend()
         self.response_back()
 
 
@@ -70,32 +71,39 @@ class extract:
         # extract relevant information from prediction
         name = self.predict[2]
         nickname = self.predict[1]
+        department = self.predict[0]
         disease = self.predict[4]
         roomtype = self.predict[5]
         number = self.predict[6]
         duration = self.predict[7] 
         
-        # get price of id
-        p_id = self.df_price_id.loc[(self.df_price_id['ชื่อจริง'] == name) & (self.df_price_id['ชื่อเล่น'] == nickname), self.df_price_id.columns[-1]]
-
-        # get price of room
-        p_rm = self.df_price_rm.loc[self.df_price_rm['ห้องพัก'] == roomtype, self.df_price_rm.columns[-2]]
-        condition = {
-            1: duration in ["คืน", "วัน"],
-            7: duration == "สัปดาห์",
-            30: duration == "เดือน",
-            356: duration == "ปี",   
-        }
-        day = next(key for key, value in condition.items() if value)
-        p_rm *= int(text_to_arabic_digit(number)) * day
-
-        # get price of disease
-        p_dis = self.df_price_dis[self.df_price_dis[disease]==1]['ราคา'].sum()
-
-        # calculate total spend
-        self.total_spend = int(p_id) + int(p_rm) + int(p_dis)
-        
-        return self.total_spend 
+        if self.response_ask == []:
+            # get price of id
+            if name != '-' and nickname != '-':
+                p_id = self.df_price_id.loc[(self.df_price_id['แผนก'] == department) & (self.df_price_id['ชื่อจริง'] == name) & (self.df_price_id['ชื่อเล่น'] == nickname), self.df_price_id.columns[-1]]
+            elif name != '-':
+                p_id = self.df_price_id.loc[(self.df_price_id['แผนก'] == department) & (self.df_price_id['ชื่อจริง'] == name), self.df_price_id.columns[-1]]
+            elif nickname != '-':
+                p_id = self.df_price_id.loc[(self.df_price_id['แผนก'] == department) & (self.df_price_id['ชื่อเล่น'] == nickname), self.df_price_id.columns[-1]]
+            
+            # get price of room
+            p_rm = self.df_price_rm.loc[self.df_price_rm['ห้องพัก'] == roomtype, self.df_price_rm.columns[-2]]
+            condition = {
+                1: duration in ["คืน", "วัน"],
+                7: duration == "สัปดาห์",
+                30: duration == "เดือน",
+                356: duration == "ปี",   
+            }
+            day = next(key for key, value in condition.items() if value)
+            p_rm *= int(text_to_arabic_digit(number)) * day
+            
+            # get price of disease
+            p_dis = self.df_price_dis[self.df_price_dis[disease]==1]['ราคา'].sum()
+            
+            # calculate total spend
+            self.total_spend = int(p_id) + int(p_rm) + int(p_dis)
+            
+            return self.total_spend 
 
 
     #condition
@@ -112,7 +120,7 @@ class extract:
         self.conditions_dp = (department != "-")
         self.conditions_rm = ((roomtype != "-") and (number != "-")) or ((roomtype == "-") and (number == "-") and (duration == "-"))
         self.conditions_dis = (disease != "-")
-        print(self.conditions_id)
+        
         
         if self.conditions_id:
             if name != '-' and nickname != '-':
@@ -172,14 +180,14 @@ class extract:
                     self.res += " " + self.response_ask[ask][2]
             self.res = self.res + "ค่ะ"
         elif self.response_ask == [] and self.conditions_name_department is True and self.conditions_frist_nickname is True:
-            self.res = "ค่าใช้จ่ายเบื้องต้นอยู่ที่" + self.total_spend + "ค่ะ"
+            self.res = "ค่าใช้จ่ายเบื้องต้นอยู่ที่" + str(self.total_spend) + "ค่ะ"
         return self.res
                
 
 
         
 spreadsheetId = "11Q8gRfwRHBkyIk6lAHKKTj7LySsOS2aU" # Please set your Spreadsheet ID.
-text="คนไข้ท้องเสียรุนแรงรักษากับอาจารย์เบิร์ด แผนกศัลยกรรม ให้น้ำเกลือพักห้องคืน"
+text="คนไข้ท้องเสียรุนแรงรักษากับอาจารย์เบิร์ด แผนกศัลยกรรม ให้น้ำเกลือพักห้องพิเศษ สามวัน"
 information = extract(spreadsheetId)
 pred = information.request_info()
 response = information.response_back()
