@@ -182,9 +182,9 @@ class NurseCalculator:
             self.response = "ค่าใช้จ่ายเบื้องต้นอยู่ที่" + str(self.total_spend) + "ค่ะ"
         return self.response
 
-
     def reset(self):
-        if 'ค่าใช้จ่าย' in self.response:
+        list_res_reset=['ไม่พบรายชื่อในฐานข้อมูล','ข้อมูลที่ระบุไม่ตรงกับฐานข้อมูล','ค่าใช้จ่าย']
+        if any(reset in self.response for reset in list_res_reset):
             self.cls_response_ask = []
             self.text_list = []
             self.df = None
