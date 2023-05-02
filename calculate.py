@@ -6,9 +6,12 @@ import requests
 from io import BytesIO
 from pythainlp.util import text_to_arabic_digit
 
-class extract:
+class NurseCalculator:
+
     def __init__(self,spreadsheetId):
         self.spreadsheetid = spreadsheetId
+        self.text_list=[]
+        self.cls_response_ask=[]
         self.df = None
         self.df_dp = None
         self.df_id = None
@@ -18,13 +21,7 @@ class extract:
         self.response_ask = None
         self.pred = None
         self.total_spend = None
-        df_price_id,df_price_rm,df_price_dis = self.read_google_spreadsheet()
-        self.reset()
-        self.predict_info(text)
-        conditions_id,conditions_dp,conditions_rm,conditions_dis,conditions_frist_nickname,conditions_name_department = self.check_valid_prediction()
-        self.request_info(conditions_id,conditions_dp,conditions_rm,conditions_dis)
-        self.calculate_total_spend(df_price_id, df_price_rm, df_price_dis)
-        self.response_back(conditions_frist_nickname,conditions_name_department)
+        self.response = None
 
 
     def read_google_spreadsheet(self):
@@ -41,41 +38,30 @@ class extract:
         df_price_dis = pd.read_excel(data, sheet_name="price_dis")
         self.dict_dp=self.df_dp.to_dict()
         return df_price_id,df_price_rm,df_price_dis
-    
-    def reset(self):
-        if self.response_ask == [] or self.response_ask == None:
-            self.predict = ["-"] * len(self.df.columns)# initialize prediction list with placeholders
-        print(self.response_ask)
-        print(self.predict)
-
+              
+  
     def predict_info(self,text):
-        
-        # self.predict = ["-"] * len(self.df.columns)  # initialize prediction list with placeholders
-        
+        self.text_list.append(text)
+
+        text_concat=''
+        for text in range(len(self.text_list)):
+            text_concat = self.text_list[text]+text_concat
+        self.predict = ["-"] * len(self.df.columns)# initialize prediction list with placeholders
         # Find the department in the dictionary
         for key, sub_dict in self.dict_dp.items():
             for sub_key, sub_value in sub_dict.items():
-                if isinstance(sub_value, str) and sub_value in text:
+                if isinstance(sub_value, str) and sub_value in text_concat:
                     self.predict[0] = key
                     break
-            # if self.predict[0] != "-":
-            #     break
+          
 
         # Find the values in the dataframe
         for i, column in enumerate(self.df.columns[1:]):
             for v in self.df[column]:
-                if isinstance(v, str) and v in text:
+                if isinstance(v, str) and v in text_concat:
                     self.predict[i+1] = v
                     break
-        
-    
-    # def update_predict(self,predict_list):
-    #     if len(predict_list)==2:
-    #         for i in range(len(self.response_ask)):
-    #             predict_list[0][self.response_ask[i][1]] = predict_list[1][self.response_ask[i][1]]
-    #         self.predict = predict_list[0]
-    #     return self.predict
-       
+            
     #condition
     #identify doctor/department/desease
     def check_valid_prediction(self):
@@ -135,8 +121,10 @@ class extract:
         if not conditions_dis:
             self.response_ask.append((info[4], 4,"โรคที่เข้ารับการรักษา"))
         self.pred.append((self.predict,self.response_ask))
-        print(self.pred)
+        self.cls_response_ask.append(self.response_ask)
         return(self.pred)
+        
+
     
     def calculate_total_spend(self,df_price_id,df_price_rm,df_price_dis):
         # extract relevant information from prediction
@@ -178,35 +166,62 @@ class extract:
 
 
     def response_back(self,conditions_frist_nickname,conditions_name_department):
-        response = ''
+        self.response = ''
         if not conditions_frist_nickname:
-            response = "ไม่พบรายชื่อในฐานข้อมูล กรุณาระบุอีกครั้งนะคะ"
+            self.response = "ไม่พบรายชื่อในฐานข้อมูล กรุณาระบุอีกครั้งนะคะ"
         elif not conditions_name_department:
-            response = "ข้อมูลที่ระบุไม่ตรงกับฐานข้อมูล กรุณาระบุใหม่นะคะ"
+            self.response = "ข้อมูลที่ระบุไม่ตรงกับฐานข้อมูล กรุณาระบุใหม่นะคะ"
         elif self.response_ask != [] and conditions_name_department is not False and conditions_frist_nickname is not False:
             for ask in range(len(self.response_ask)):
                 if ask == 0:
-                    response = "กรุณาระบุ" + self.response_ask[ask][2]
+                    self.response = "กรุณาระบุ" + self.response_ask[ask][2]
                 else:
-                   response += " " + self.response_ask[ask][2]
-            response = response + "ค่ะ"
+                   self.response += " " + self.response_ask[ask][2]
+            self.response = self.response + "ค่ะ"
         elif self.response_ask == [] and conditions_name_department is True and conditions_frist_nickname is True:
-            response = "ค่าใช้จ่ายเบื้องต้นอยู่ที่" + str(self.total_spend) + "ค่ะ"
-        print(response)
-        return response
+            self.response = "ค่าใช้จ่ายเบื้องต้นอยู่ที่" + str(self.total_spend) + "ค่ะ"
+        return self.response
 
+
+    def reset(self):
+        if 'ค่าใช้จ่าย' in self.response:
+            self.cls_response_ask = []
+            self.text_list = []
+            self.df = None
+            self.df_dp = None
+            self.df_id = None
+            self.dict_dp = None
+            self.predict = None 
+            self.check_status = None
+            self.response_ask = None
+            self.pred = None
+            self.total_spend = None
+            self.response = None
+
+    def func_all(self,text):
+        df_price_id,df_price_rm,df_price_dis = self.read_google_spreadsheet()
+        self.predict_info(text)
+        conditions_id,conditions_dp,conditions_rm,conditions_dis,conditions_frist_nickname,conditions_name_department = self.check_valid_prediction()
+        self.request_info(conditions_id,conditions_dp,conditions_rm,conditions_dis)
+        self.calculate_total_spend(df_price_id, df_price_rm, df_price_dis)
+        response = self.response_back(conditions_frist_nickname,conditions_name_department)
+        self.reset()
+        return response
 
     
    
 spreadsheetId = "11Q8gRfwRHBkyIk6lAHKKTj7LySsOS2aU" # Please set your Spreadsheet ID.
-#text="คนไข้ท้องเสียรุนแรงรักษากับอาจารย์เบิร์ด ให้น้ำเกลือพักห้องพิเศษ สามวัน"
-text="แผนกศัลยกรรม หมอทรงภูมิ"
-information = extract(spreadsheetId)
+text= "คนไข้ท้องเสียรุนแรงรักษากับอาจารย์ให้น้ำเกลือพักห้องธรรมดาหนึ่งคืน"
+information = NurseCalculator(spreadsheetId)
+res = information.func_all(text)
+print(res)
+text_2="อาจารย์นลินญาแผนกเวชศาสตร์ฉุกเฉิน"
+res = information.func_all(text_2)
+print(res)
+text_3="อาจารย์หมอออมกชพรรณแผนกออร์โธผ่าตัดเข่าคนไข้ข้อเข่าเสื่อม นอนห้องธรรมดาสองคืน"
+res = information.func_all(text_3)
+print(res)
 
-
-
-# prediction = information.predict_info(text)
-# print(f'prediction: {prediction}')
 
 
 
