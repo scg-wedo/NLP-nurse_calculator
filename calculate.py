@@ -151,7 +151,7 @@ class NurseCalculator:
             # get price of room
             p_rm = df_price_rm.loc[df_price_rm['ห้องพัก'] == roomtype, df_price_rm.columns[-2]]
             condition = {
-                1: duration in ["คืน", "วัน"],
+                1: duration in ["คืน", "วัน","-"],
                 7: duration == "สัปดาห์",
                 30: duration == "เดือน",
                 356: duration == "ปี",   
@@ -221,10 +221,10 @@ print(res)
 text_2="อาจารย์ นลินญา แผนก เวชศาสตร์ ฉุกเฉิน"
 res = information.func_all(text_2)
 print(res)
-# text_3="อาจารย์หมอออมกชพรรณแผนกออร์โธผ่าตัดเข่าคนไข้ข้อเข่าเสื่อม นอนห้องธรรมดาสองคืน"
-# res = information.func_all(text_3)
-# print(res)
-text_4="อาจารย์ หมอ กชพรรณ แผนก ออร์โธ ผ่าตัด เข่า คนไข้ ข้อเข่าเสื่อม พักฟื้น ห้อง พิเศษ หนึ่ง วัน"
+text_3="อาจารย์หมอออมกชพรรณแผนกออร์โธผ่าตัดเข่าคนไข้ข้อเข่าเสื่อม นอนห้องธรรมดาสองคืน"
+res = information.func_all(text_3)
+print(res)
+text_4="อาจารย์ หมอ กชพรรณ แผนก ออร์โธ ผ่าตัด เข่า คนไข้ ข้อเข่าเสื่อม พักฟื้น ห้อง ธรรมดา หนึ่ง "
 res = information.func_all(text_4)
 print(res)
 
