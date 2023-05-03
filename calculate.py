@@ -91,6 +91,8 @@ class NurseCalculator:
         else:
             conditions_name_department = "Can't check"
         
+        print(conditions_frist_nickname)
+        
 
         return conditions_id,conditions_dp,conditions_rm,conditions_dis,conditions_frist_nickname,conditions_name_department
     #request more information
@@ -122,11 +124,12 @@ class NurseCalculator:
             self.response_ask.append((info[4], 4,"โรคที่เข้ารับการรักษา"))
         self.pred.append((self.predict,self.response_ask))
         self.cls_response_ask.append(self.response_ask)
+        print(self.pred)
         return(self.pred)
         
 
     
-    def calculate_total_spend(self,df_price_id,df_price_rm,df_price_dis):
+    def calculate_total_spend(self,df_price_id,df_price_rm,df_price_dis,conditions_frist_nickname,conditions_name_department):
         # extract relevant information from prediction
         name = self.predict[2]
         nickname = self.predict[1]
@@ -136,7 +139,7 @@ class NurseCalculator:
         number = self.predict[6]
         duration = self.predict[7] 
         
-        if self.response_ask == []:
+        if self.response_ask == [] and conditions_frist_nickname == True and conditions_name_department == True:
             # get price of id
             if name != '-' and nickname != '-':
                 p_id = df_price_id.loc[(df_price_id['แผนก'] == department) & (df_price_id['ชื่อจริง'] == name) & (df_price_id['ชื่อเล่น'] == nickname), df_price_id.columns[-1]]
@@ -203,7 +206,7 @@ class NurseCalculator:
         self.predict_info(text)
         conditions_id,conditions_dp,conditions_rm,conditions_dis,conditions_frist_nickname,conditions_name_department = self.check_valid_prediction()
         self.request_info(conditions_id,conditions_dp,conditions_rm,conditions_dis)
-        self.calculate_total_spend(df_price_id, df_price_rm, df_price_dis)
+        self.calculate_total_spend(df_price_id, df_price_rm, df_price_dis,conditions_frist_nickname,conditions_name_department)
         response = self.response_back(conditions_frist_nickname,conditions_name_department)
         self.reset()
         return response
@@ -211,15 +214,18 @@ class NurseCalculator:
     
    
 spreadsheetId = "11Q8gRfwRHBkyIk6lAHKKTj7LySsOS2aU" # Please set your Spreadsheet ID.
-text= "คนไข้ท้องเสียรุนแรงรักษากับอาจารย์ให้น้ำเกลือพักห้องธรรมดาหนึ่งคืน"
+text= "คนไข้ ท้องเสียรุนแรง รักษา กับ อาจารย์ ให้ น้ำเกลือ พัก ห้อง ธรรมดา หนึ่ง คืน"
 information = NurseCalculator(spreadsheetId)
 res = information.func_all(text)
 print(res)
-text_2="อาจารย์นลินญาแผนกเวชศาสตร์ฉุกเฉิน"
+text_2="อาจารย์ นลินญา แผนก เวชศาสตร์ ฉุกเฉิน"
 res = information.func_all(text_2)
 print(res)
-text_3="อาจารย์หมอออมกชพรรณแผนกออร์โธผ่าตัดเข่าคนไข้ข้อเข่าเสื่อม นอนห้องธรรมดาสองคืน"
-res = information.func_all(text_3)
+# text_3="อาจารย์หมอออมกชพรรณแผนกออร์โธผ่าตัดเข่าคนไข้ข้อเข่าเสื่อม นอนห้องธรรมดาสองคืน"
+# res = information.func_all(text_3)
+# print(res)
+text_4="อาจารย์ หมอ กชพรรณ แผนก ออร์โธ ผ่าตัด เข่า คนไข้ ข้อเข่าเสื่อม พักฟื้น ห้อง พิเศษ หนึ่ง วัน"
+res = information.func_all(text_4)
 print(res)
 
 
